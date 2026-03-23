@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qwen3-asr"
+dynamic = ["version"]
+description = "Qwen3-ASR-1.7B を使った日本語音声文字起こし CLI ツール"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+dependencies = [
+    "torch>=2.0",
+    "qwen-asr",
+    "click>=8.0,<9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-mock",
+]
+
+[project.scripts]
+qwen3-asr = "qwen3_asr.cli:main"
+
+[tool.hatch.version]
+path = "src/qwen3_asr/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qwen3_asr"]
