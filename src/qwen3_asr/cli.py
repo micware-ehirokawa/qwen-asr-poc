@@ -48,10 +48,29 @@ def main():
 def transcribe(audio_file, output, model, device, verbose):
     """音声ファイルを日本語テキストに文字起こしする"""
     try:
+        from qwen3_asr.transcriber import detect_device, load_model
+        from qwen3_asr.transcriber import transcribe as do_transcribe
+
         path = validate_audio_file(audio_file)
 
-        # TODO: フェーズ 3 でモデル推論を実装
-        click.echo("未実装です", err=True)
+        device_map, dtype = detect_device(device)
+        if verbose:
+            click.echo(f"デバイス: {device_map}, dtype: {dtype}", err=True)
+
+        click.echo("モデルを読み込んでいます...", err=True)
+        asr_model = load_model(model, device_map, dtype)
+        if verbose:
+            click.echo("モデルの読み込みが完了しました。", err=True)
+
+        if verbose:
+            click.echo(f"文字起こし中: {path}", err=True)
+        text = do_transcribe(asr_model, str(path))
+
+        if output:
+            Path(output).write_text(text, encoding="utf-8")
+            click.echo(f"結果を保存しました: {output}", err=True)
+        else:
+            click.echo(text)
 
     except Qwen3AsrError as e:
         click.echo(str(e), err=True)
