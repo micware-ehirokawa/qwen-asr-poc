@@ -69,3 +69,27 @@ class TestTranscribe:
         assert result.exit_code == 0
         assert "デバイス:" in result.output
         assert "モデルの読み込みが完了しました" in result.output
+
+    def test_with_context(self, runner, tmp_path, mock_model):
+        wav_file = tmp_path / "test.wav"
+        wav_file.write_bytes(b"RIFF" + b"\x00" * 100)
+        ctx_file = tmp_path / "context.txt"
+        ctx_file.write_text("用語: Qwen3-ASR, vLLM\n人名: 田中, 鈴木", encoding="utf-8")
+
+        result = runner.invoke(
+            main, ["transcribe", str(wav_file), "-c", str(ctx_file)]
+        )
+        assert result.exit_code == 0
+        assert "テスト音声の文字起こし結果です。" in result.output
+
+    def test_with_context_verbose(self, runner, tmp_path, mock_model):
+        wav_file = tmp_path / "test.wav"
+        wav_file.write_bytes(b"RIFF" + b"\x00" * 100)
+        ctx_file = tmp_path / "context.txt"
+        ctx_file.write_text("用語: Qwen3-ASR", encoding="utf-8")
+
+        result = runner.invoke(
+            main, ["transcribe", str(wav_file), "-c", str(ctx_file), "-v"]
+        )
+        assert result.exit_code == 0
+        assert "コンテキスト読み込み" in result.output

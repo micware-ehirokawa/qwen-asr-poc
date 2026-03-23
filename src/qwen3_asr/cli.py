@@ -44,14 +44,24 @@ def main():
 @click.option("-o", "--output", default=None, type=click.Path(), help="結果をファイルに出力")
 @click.option("-m", "--model", default="Qwen/Qwen3-ASR-1.7B", help="モデルディレクトリの指定")
 @click.option("-d", "--device", default=None, help="デバイス指定 (cpu / cuda:0 など)")
+@click.option(
+    "-c", "--context", default=None, type=click.Path(exists=True),
+    help="バックグラウンド知識ファイル（人名・用語等のテキスト）",
+)
 @click.option("-v", "--verbose", is_flag=True, help="詳細ログを表示")
-def transcribe(audio_file, output, model, device, verbose):
+def transcribe(audio_file, output, model, device, context, verbose):
     """音声ファイルを日本語テキストに文字起こしする"""
     try:
         from qwen3_asr.transcriber import detect_device, load_model
         from qwen3_asr.transcriber import transcribe as do_transcribe
 
         path = validate_audio_file(audio_file)
+
+        context_text = ""
+        if context:
+            context_text = Path(context).read_text(encoding="utf-8").strip()
+            if verbose:
+                click.echo(f"コンテキスト読み込み: {context}（{len(context_text)}文字）", err=True)
 
         device_map, dtype = detect_device(device)
         if verbose:
@@ -65,7 +75,9 @@ def transcribe(audio_file, output, model, device, verbose):
         if verbose:
             click.echo(f"文字起こし中: {path}", err=True)
         verbose_cb = (lambda msg: click.echo(msg, err=True)) if verbose else None
-        text = do_transcribe(asr_model, str(path), verbose_callback=verbose_cb)
+        text = do_transcribe(
+            asr_model, str(path), context=context_text, verbose_callback=verbose_cb
+        )
 
         if output:
             Path(output).write_text(text, encoding="utf-8")

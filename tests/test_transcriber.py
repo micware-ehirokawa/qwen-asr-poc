@@ -106,6 +106,29 @@ class TestTranscribe:
         assert text == "こんにちは"
         mock_model.transcribe.assert_called_once_with(
             audio="test.wav",
+            context="",
+            language="Japanese",
+        )
+
+    def test_short_audio_with_context(self, mocker):
+        mock_model = MagicMock()
+        fake_result = MagicMock()
+        fake_result.text = "Qwen3-ASRのテストです"
+        mock_model.transcribe.return_value = [fake_result]
+
+        sr = 16000
+        short_audio = np.zeros(10 * sr)
+        mocker.patch(
+            "qwen3_asr.transcriber.load_audio",
+            return_value=(short_audio, sr),
+        )
+
+        ctx = "用語: Qwen3-ASR, vLLM"
+        text = transcribe(mock_model, "test.wav", context=ctx)
+        assert text == "Qwen3-ASRのテストです"
+        mock_model.transcribe.assert_called_once_with(
+            audio="test.wav",
+            context=ctx,
             language="Japanese",
         )
 
@@ -113,7 +136,7 @@ class TestTranscribe:
         mock_model = MagicMock()
         call_count = 0
 
-        def fake_transcribe(audio, language):
+        def fake_transcribe(audio, context, language):
             nonlocal call_count
             call_count += 1
             result = MagicMock()
