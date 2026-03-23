@@ -64,7 +64,8 @@ def transcribe(audio_file, output, model, device, verbose):
 
         if verbose:
             click.echo(f"文字起こし中: {path}", err=True)
-        text = do_transcribe(asr_model, str(path))
+        verbose_cb = (lambda msg: click.echo(msg, err=True)) if verbose else None
+        text = do_transcribe(asr_model, str(path), verbose_callback=verbose_cb)
 
         if output:
             Path(output).write_text(text, encoding="utf-8")

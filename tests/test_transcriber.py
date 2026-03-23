@@ -1,10 +1,16 @@
 from unittest.mock import MagicMock
 
+import numpy as np
 import pytest
 import torch
 
 from qwen3_asr.exceptions import ModelLoadError
-from qwen3_asr.transcriber import detect_device, load_model, transcribe
+from qwen3_asr.transcriber import (
+    detect_device,
+    load_model,
+    split_audio,
+    transcribe,
+)
 
 
 class TestDetectDevice:
@@ -44,12 +50,41 @@ class TestLoadModel:
             load_model("Qwen/Qwen3-ASR-1.7B", "cpu", torch.float32)
 
 
+class TestSplitAudio:
+    def test_short_audio_single_chunk(self):
+        sr = 16000
+        audio = np.zeros(10 * sr)  # 10秒
+        chunks = split_audio(audio, sr, chunk_duration=30)
+        assert len(chunks) == 1
+
+    def test_long_audio_multiple_chunks(self):
+        sr = 16000
+        audio = np.zeros(90 * sr)  # 90秒
+        chunks = split_audio(audio, sr, chunk_duration=30, overlap=2)
+        # 90秒 / (30-2)秒ステップ = ~3.2 → 4チャンク
+        assert len(chunks) >= 3
+
+    def test_skip_tiny_tail(self):
+        sr = 16000
+        # ステップ=28秒。28秒+0.5秒=28.5秒。末尾0.5秒チャンク(< 1秒)はスキップ
+        audio = np.zeros(int(28.5 * sr))
+        chunks = split_audio(audio, sr, chunk_duration=30, overlap=2)
+        assert len(chunks) == 1
+
+
 class TestTranscribe:
-    def test_returns_text(self):
+    def test_short_audio(self, mocker):
         mock_model = MagicMock()
         fake_result = MagicMock()
         fake_result.text = "こんにちは"
         mock_model.transcribe.return_value = [fake_result]
+
+        sr = 16000
+        short_audio = np.zeros(10 * sr)
+        mocker.patch(
+            "qwen3_asr.transcriber.load_audio",
+            return_value=(short_audio, sr),
+        )
 
         text = transcribe(mock_model, "test.wav")
         assert text == "こんにちは"
@@ -57,3 +92,27 @@ class TestTranscribe:
             audio="test.wav",
             language="Japanese",
         )
+
+    def test_long_audio_chunked(self, mocker):
+        mock_model = MagicMock()
+        call_count = 0
+
+        def fake_transcribe(audio, language):
+            nonlocal call_count
+            call_count += 1
+            result = MagicMock()
+            result.text = f"チャンク{call_count}"
+            return [result]
+
+        mock_model.transcribe.side_effect = fake_transcribe
+
+        sr = 16000
+        long_audio = np.zeros(90 * sr)  # 90秒
+        mocker.patch(
+            "qwen3_asr.transcriber.load_audio",
+            return_value=(long_audio, sr),
+        )
+
+        text = transcribe(mock_model, "test.wav")
+        assert "チャンク1" in text
+        assert call_count >= 3
