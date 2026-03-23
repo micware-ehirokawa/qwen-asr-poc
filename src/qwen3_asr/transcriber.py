@@ -82,6 +82,11 @@ def split_audio(
     return chunks
 
 
+def format_text(text: str) -> str:
+    """句点で改行を挿入する"""
+    return text.replace("。", "。\n").rstrip("\n")
+
+
 def transcribe(model, audio_path: str, verbose_callback=None) -> str:
     """音声ファイルを文字起こしする
 
@@ -93,7 +98,7 @@ def transcribe(model, audio_path: str, verbose_callback=None) -> str:
     # 短い音声はそのまま処理
     if duration <= CHUNK_DURATION:
         results = model.transcribe(audio=audio_path, language="Japanese")
-        return results[0].text
+        return format_text(results[0].text)
 
     # 長い音声はチャンク分割
     chunks = split_audio(audio, sr)
@@ -107,4 +112,4 @@ def transcribe(model, audio_path: str, verbose_callback=None) -> str:
         results = model.transcribe(audio=(chunk, sr), language="Japanese")
         texts.append(results[0].text)
 
-    return "".join(texts)
+    return format_text("".join(texts))

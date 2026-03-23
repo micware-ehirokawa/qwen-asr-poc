@@ -7,6 +7,7 @@ import torch
 from qwen3_asr.exceptions import ModelLoadError
 from qwen3_asr.transcriber import (
     detect_device,
+    format_text,
     load_model,
     split_audio,
     transcribe,
@@ -70,6 +71,21 @@ class TestSplitAudio:
         audio = np.zeros(int(28.5 * sr))
         chunks = split_audio(audio, sr, chunk_duration=30, overlap=2)
         assert len(chunks) == 1
+
+
+class TestFormatText:
+    def test_adds_newline_after_period(self):
+        assert format_text("あいう。かきく。") == "あいう。\nかきく。"
+
+    def test_no_trailing_newline(self):
+        result = format_text("あいう。")
+        assert not result.endswith("\n")
+
+    def test_no_period(self):
+        assert format_text("あいうかきく") == "あいうかきく"
+
+    def test_empty_string(self):
+        assert format_text("") == ""
 
 
 class TestTranscribe:
